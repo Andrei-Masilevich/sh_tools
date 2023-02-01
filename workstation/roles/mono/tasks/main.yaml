@@ -1,0 +1,57 @@
+- name: Search for MONO installation
+  set_fact:
+    install_mono: "{{ 'mono-runtime' not in ansible_facts.packages and ansible_distribution in ('Pop!_OS', 'Ubuntu', 'Debian') }}"
+
+- name: Install MONO keys
+  become: true
+  apt_key:
+    keyserver: hkp://keyserver.ubuntu.com:80
+    id: 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
+  when: install_mono
+
+- name: Set appropriate MONO release
+  set_fact:
+    # install_mono_distribution_release: "{{ ansible_distribution_release }}"
+    install_mono_distribution_release: "xenial"
+  when: install_mono
+
+- name: Add MONO repository
+  become: true
+  apt_repository:
+    repo: "deb https://download.mono-project.com/repo/ubuntu stable-{{ install_mono_distribution_release }} main"
+    state: present
+    filename: mono-official-stable-for-ubuntu.list
+  when: install_mono
+
+- name: Add libpng12 repository
+  become: true
+  apt_repository:
+    repo: 'ppa:linuxuprising/libpng12'
+  when: install_mono
+
+- name: Install MONO requirements
+  become: true
+  package:
+    name:
+      - libpng12-0
+      - gnupg
+      - ca-certificates
+  when: install_mono
+
+- name: Install MONO packages
+  become: true
+  package:
+    name:
+      - mono-runtime
+      - libmono-system-windows-forms4.0-cil
+  when: install_mono
+
+- name: Check version
+  command: mono -V
+  register: mono
+  when: install_mono
+
+- name: MONO result
+  debug:
+    msg: "{{mono.stdout_lines}}"
+  when: install_mono

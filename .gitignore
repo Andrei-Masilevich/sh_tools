@@ -1,0 +1,13 @@
+#Mergetool
+*.orig
+
+#IDE
+.vscode/
+.idea/
+*.user
+.vs/
+*.vcxproj*
+*.cbp
+
+#Misc
+nohup.out

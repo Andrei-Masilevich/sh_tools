@@ -1,0 +1,170 @@
+- name: Search for script installation
+  stat:
+    path: "{{ install_home_dir }}/.local/sh_tools/{{ install_regular_user }}/.data/.master.~"
+  register: sh_tools_masterkey
+
+- name: Search for script installation
+  set_fact:
+    install_sh_tools: "{{ sh_tools_masterkey.stat.isreg is not defined }}"
+
+- name: Search the properly installed BASH
+  stat:
+    path: /bin/bash
+  register: bash
+  when: install_sh_tools
+
+- name: BASH was not found
+  fail:
+    msg: BASH is required!
+  when: (install_sh_tools) and (bash.stat.isreg is not defined or not bash.stat.executable)
+
+- name: Search for ccrypt installation
+  set_fact:
+    install_ccrypt: "{{ (install_sh_tools) and ('ccrypt' not in ansible_facts.packages and ansible_distribution in ('Pop!_OS', 'Ubuntu', 'Debian')) }}"
+
+- name: Download ccrypt DEB
+  get_url:
+    url: https://ccrypt.sourceforge.net/download/1.11/ccrypt_1.11-1_amd64.deb
+    dest: /tmp/ccrypt_1.11-1_amd64.deb
+  when: install_ccrypt
+
+- name: Install ccrypt DEB
+  become: true
+  apt: deb="/tmp/ccrypt_1.11-1_amd64.deb"
+  when: install_ccrypt
+
+- name: Make distribution folder
+  file:
+    owner: "{{ install_regular_user }}"
+    group: "{{ install_regular_user }}"
+    path: /tmp/sh_tools/scripts
+    state: directory
+  when: install_sh_tools
+
+- name: Copy data file
+  copy:
+    src: "{{install_data_file}}"
+    dest: "/tmp/sh_tools/{{ install_data_file | basename }}"
+    owner: "{{ install_regular_user }}"
+  when: install_sh_tools and install_data_file is defined
+
+- name: Copy key file
+  copy:
+    src: "{{install_key_file}}"
+    dest: "/tmp/sh_tools/{{ install_key_file | basename }}"
+    owner: "{{ install_regular_user }}"
+  when: install_sh_tools and install_key_file is defined
+
+- name: Copy current scripts files
+  copy:
+    src: "{{ item }}"
+    dest: /tmp/sh_tools/scripts/{{ item | basename }}
+    owner: "{{ install_regular_user }}"
+    group: "{{ install_regular_user }}"
+  with_fileglob:
+    - "{{ playbook_dir }}/../scripts/*.sh"
+  when: install_sh_tools
+
+- name: Copy distribution scripts files
+  copy:
+    owner: "{{ install_regular_user }}"
+    group: "{{ install_regular_user }}"
+    src: "{{ playbook_dir }}/../{{ item }}"
+    dest: /tmp/sh_tools/{{ item }}
+  with_items:
+    - "install.sh"
+    - "env.inf"
+  when: install_sh_tools
+
+- name: Ask for MASTER passphrase
+  pause:
+    prompt: "{{item}}: Enter MASTER passphrase"
+    echo: no
+  register: master_passphrase_pause
+  with_items: "{{ ansible_play_batch }}"
+  when: install_sh_tools
+
+- name: Ask for MASTER passphrase (again)
+  pause:
+    prompt: "{{item}}: Enter MASTER passphrase (again)"
+    echo: no
+  register: master_passphrase2_pause
+  with_items: "{{ ansible_play_batch }}"
+  when: install_sh_tools
+
+- set_fact:
+    master_passphrase: "{{ item.user_input }}"
+  with_items: "{{ hostvars[ansible_play_batch.0].master_passphrase_pause.results }}"
+  when: install_sh_tools and item.item == inventory_hostname
+
+- set_fact:
+    master_passphrase2: "{{ item.user_input }}"
+  with_items: "{{ hostvars[ansible_play_batch.0].master_passphrase2_pause.results }}"
+  when: install_sh_tools and item.item == inventory_hostname
+
+- name: Check MASTER passphrase
+  fail:
+    msg: Invalid MASTER passphrase. Should be two input are the same, length >= 5!
+  when: (install_sh_tools) and ((master_passphrase != master_passphrase2) or (master_passphrase | length < 5))
+
+- name: Install scripts
+  become: true
+  become_user: "{{ install_regular_user }}"
+  command:
+    argv:
+      - "{{bash.stat.path}}"
+      - /tmp/sh_tools/install.sh
+      - "-P"
+      - "{{ master_passphrase }}"
+      - "-v"
+  register: sh_tools
+  when: install_sh_tools and install_data_file is not defined and install_key_file is not defined
+
+- name: Install scripts
+  become: true
+  become_user: "{{ install_regular_user }}"
+  command:
+    argv:
+      - "{{bash.stat.path}}"
+      - /tmp/sh_tools/install.sh
+      - "-P"
+      - "{{ master_passphrase }}"
+      - "-i"
+      - "/tmp/sh_tools/{{ install_data_file | basename }}"
+      - "-v"
+  register: sh_tools
+  when: install_sh_tools and install_data_file is defined and install_key_file is not defined
+
+- name: Install scripts
+  become: true
+  become_user: "{{ install_regular_user }}"
+  command:
+    argv:
+      - "{{bash.stat.path}}"
+      - /tmp/sh_tools/install.sh
+      - "-P"
+      - "{{ master_passphrase }}"
+      - "-i"
+      - "/tmp/sh_tools/{{ install_data_file | basename }}"
+      - "-Z"
+      - "/tmp/sh_tools/{{ install_key_file | basename }}"
+      - "-v"
+  register: sh_tools
+  when: install_sh_tools and install_data_file is defined and install_key_file is defined
+
+- name: Installation result
+  debug:
+    msg: "{{sh_tools.stdout_lines}}"
+  when: install_sh_tools
+
+- name: Cleanup
+  file:
+    path: "/tmp/sh_tools/{{ install_data_file | basename }}"
+    state: absent
+  when: install_data_file is defined
+
+- name: Cleanup
+  file:
+    path: "/tmp/sh_tools/{{ install_key_file | basename }}"
+    state: absent
+  when: install_key_file is defined

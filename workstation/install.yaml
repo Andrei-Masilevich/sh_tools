@@ -1,0 +1,19 @@
+---
+
+- hosts: localhost
+  connection: local
+  pre_tasks:
+
+    - name: Initialize
+      include_tasks: pre_tasks.yaml
+
+  roles:
+    - base
+    # This sh_tools scripts
+    - scripts
+    - git
+    # C++/Python3 basic development Kit without IDE
+    - development
+    # I use some C# utils
+    - mono  
+

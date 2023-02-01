@@ -1,0 +1,43 @@
+- name: Get current user
+  set_fact:
+    install_regular_user: "{{ ansible_user_id or ansible_env.SUDO_USER }}"
+  when: install_regular_user is not defined
+
+- name: Check for working folder
+  stat:
+    path: "/home/{{ install_regular_user }}"
+  register: install_home
+
+- name: Get working folder
+  set_fact:
+    install_home_dir: "{{ install_home.stat.path if install_home.stat.isdir is defined }}"
+
+- name: Get GUI mode
+  set_fact:
+    install_gui: "{{ ansible_env.DISPLAY is defined or ansible_env.GNOME_TERMINAL_SCREEN is defined }}"
+
+- name: Variables
+  debug:
+    msg:
+    - "install_regular_user = {{ install_regular_user }}"
+    - "install_home_dir = {{ install_home_dir }}"
+    - "install_gui = {{ install_gui if install_gui is defined else 'false' }}"
+
+- name: Working folder was not found
+  fail:
+    msg: "Folder /home/{{ install_regular_user }} is required!"
+  when: not install_home.stat.isdir or install_home.stat.pw_name != install_regular_user
+
+- name: Update repository
+  become: true
+  apt:
+    update_cache: yes
+    cache_valid_time: 432000 # 5 days
+  changed_when: false
+  when: ansible_distribution in ("Pop!_OS", "Ubuntu", "Debian")
+
+- name: Gather the package facts
+  become: true
+  package_facts:
+    manager: auto
+

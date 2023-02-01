@@ -1,0 +1,3 @@
+[submodule "tests/fmk"]
+	path = tests/fmk
+	url = ../sh_test_fmk.git

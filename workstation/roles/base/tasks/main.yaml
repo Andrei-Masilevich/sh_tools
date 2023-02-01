@@ -1,0 +1,26 @@
+- name: Install base packages
+  become: true
+  package:
+    name:
+      - software-properties-common
+      - apt-transport-https
+      - curl
+      - wget
+      - unzip
+      - net-tools
+      - unzip
+      - tree
+      - ncdu
+      - vim
+      - neofetch
+  when: ansible_distribution in ("Pop!_OS", "Ubuntu", "Debian")  
+
+- name: "Setup neofetch"
+  blockinfile:
+    path: "{{ install_home_dir }}/.profile"
+    create: true
+    state: present
+    block: |
+      neofetch
+  when: ansible_distribution in ("Pop!_OS", "Ubuntu", "Debian")
+      

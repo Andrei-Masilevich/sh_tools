@@ -1,0 +1,38 @@
+- name: Install libraries for Python3 development
+  become: true
+  package:
+    name:
+      - python3
+      - python3-pip
+  when: ansible_distribution in ("Pop!_OS", "Ubuntu", "Debian")  
+  
+- name: Install base components for C/C++ development
+  become: true
+  package:
+    name:
+      - build-essential
+      - cmake
+      - gdb
+  when: ansible_distribution in ("Pop!_OS", "Ubuntu", "Debian")
+
+- name: Install Clang Format
+  become: true
+  package:
+    name:
+      - clang-format
+  when: ansible_distribution in ("Pop!_OS", "Ubuntu", "Debian")
+
+- name: Install libraries for C/C++ development
+  become: true
+  package:
+    name:
+      - libboost-all-dev
+      - libssl-dev
+  when: ansible_distribution in ("Pop!_OS", "Ubuntu", "Debian")  
+
+- name: Create DGB config
+  copy:
+    owner: "{{ install_regular_user }}"
+    group: "{{ install_regular_user }}"
+    src: "gdbinit"
+    dest: "{{ install_home_dir }}/.gdbinit"

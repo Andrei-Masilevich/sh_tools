@@ -1,0 +1,89 @@
+- name: "Install base Git components"
+  become: true
+  package:
+    name:
+      - git
+      - git-lfs
+      - vim
+
+- name: "Install Git-GUI components"
+  become: true
+  package:
+    name:
+      - gitk
+      - meld
+  when: install_gui
+
+- name: "Initialize GIT config for GUI"
+  set_fact:
+    git_merge_tool: meld
+    git_merge_tool_options: "--output $MERGED"
+    git_diff_tool: meld
+  when: install_gui
+
+- name: "Initialize GIT config for CLI"
+  set_fact:
+    git_merge_tool: vimdiff
+    git_merge_tool_options: ""
+    git_diff_tool: vimdiff
+  when: not install_gui
+
+- name: Search for GIT installation
+  stat:
+    path: "{{ install_home_dir }}/.gitconfig"
+  register: gitconfig
+
+- name: Search for GIT installation
+  set_fact:
+    install_gitconfig: "{{ gitconfig.stat.isreg is not defined }}"
+
+- name: Ask for GIT username
+  pause:
+    prompt: "{{item}}: What is your GIT username?"
+    echo: true
+  register: git_user_name_pause
+  with_items: "{{ ansible_play_batch }}"
+  when: install_gitconfig
+
+- name: Ask for GIT useremail
+  pause:
+    prompt: "{{item}}: What is your GIT email?"
+    echo: true
+  register: git_user_email_pause
+  with_items: "{{ ansible_play_batch }}"
+  when: install_gitconfig
+
+- set_fact:
+    git_user_name: "{{ item.user_input }}"
+  with_items: "{{ hostvars[ansible_play_batch.0].git_user_name_pause.results }}"
+  when: install_gitconfig and item.item == inventory_hostname
+
+- set_fact:
+    git_user_email: "{{ item.user_input }}"
+  with_items: "{{ hostvars[ansible_play_batch.0].git_user_email_pause.results }}"
+  when: install_gitconfig and item.item == inventory_hostname
+
+- name: "Create GIT config"
+  template:
+    src: gitconfig.j2
+    dest: "{{ install_home_dir }}/.gitconfig"
+    owner: "{{ install_regular_user }}"
+    group: "{{ install_regular_user }}"
+    mode: 0644
+  when: install_gitconfig
+
+- name: "Setup aliases"
+  blockinfile:
+    path: "{{ install_home_dir }}/.bash_aliases"
+    create: true
+    state: present
+    block: |
+      alias g=git
+      alias gs="git status | sed -e 's/^#/ /';"
+      alias gr='git remote -v'
+      alias gclean='git clean -f -d -x'
+      alias gru='git remote update -p'
+      alias gra="git remote update -p && echo ====== && git submodule foreach 'git remote update -p'"
+      alias gi='git submodule update --init --recursive'
+      alias gii='git submodule update --init --recursive; git submodule sync'
+

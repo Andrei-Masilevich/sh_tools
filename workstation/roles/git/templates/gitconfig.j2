@@ -1,0 +1,25 @@
+[user]
+	name = {{ git_user_name }}
+	email = {{ git_user_email }}
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+[merge]
+	tool = {{ git_merge_tool }}
+[mergetool "{{ git_merge_tool }}"]
+	cmd = {{ git_merge_tool }} $LOCAL $MERGED $REMOTE {{ git_merge_tool_options }}
+	path = {{ git_merge_tool }}
+[diff]
+	tool = {{ git_diff_tool }}
+	guitool = {{ git_diff_tool }}
+[difftool]
+	prompt = false
+[difftool "{{ git_diff_tool }}"]
+	cmd = {{ git_diff_tool }} $LOCAL $REMOTE
+	path = {{ git_diff_tool }}
+[core]
+	editor = vim
+[http]
+	sslverify = false
