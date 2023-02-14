@@ -3,38 +3,50 @@
 source $(cd $(dirname ${BASH_SOURCE}) && pwd)/lib_ssh.sh
 set -o functrace
 
-__show_help()
+function __show_help()
 {
-    echo "Usage" $(basename $0) "(options)|[connection str] -- [SCP args]        "
-    echo "_______________________________________________________________________"
-    echo "Start wrapped SCP with encrypted configuration file.                   "
-    echo "_______________________________________________________________________"
-    echo " {connection str}                                                      "
-    echo "      Alias from encrypted config file.                                "
-    echo " $SSH_CONFIG_CMD_SHOW                                                  "
-    echo "      Show decrypted config file content instead of SCP launching.     "
-    echo " $SSH_CONFIG_CMD_EDIT                                                  "
-    echo "      Edit decrypted config file content.                              "
-    echo
+    echo "Usage" $(basename $0) "(options)|[connection str] [local fs] [remote fs] "
+    echo "_________________________________________________________________________"
+    echo "Start wrapped SCP with encrypted configuration file.                     "
+    echo "Ex.:                                                                     "
+    echo -e "\t$(basename $0) my.server script.sh .local/                          "
+    echo -e "\t$(basename $0) my.server script.sh /tmp/my_script.sh                "
+    echo "_________________________________________________________________________"
+    show_ssh_args_help
 }
 
-if [ $# -le 3 ]; then
-    __show_help
-    exit 0
-fi
+main()
+{ 
+    if [ $# -lt 1 ]; then
+        __show_help
+        exit 0
+    fi
 
-init_ssh "$1" PATH_TO_CONFIG CRYPTED_PATH_TO_CONFIG
+    init_ssh "$1" PATH_TO_CONFIG CRYPTED_PATH_TO_CONFIG
 
-CONNECTION_STR_OR_CMD=$1
-shift
-if [ "$1" != '--' ]; then
-    print_error "Invalid syntax! It requires '--' symbols before SCP args"
-    exit 1
-fi
-shift
-set -o functrace
-obtain_session_config "${CONNECTION_STR_OR_CMD}" ${PATH_TO_CONFIG} ${CRYPTED_PATH_TO_CONFIG} PATH_TO_SESSION_CONFIG
-if [ -n "${PATH_TO_SESSION_CONFIG}" ]; then
-    $(get_scp) -F ${PATH_TO_SESSION_CONFIG} $@
-    clear
-fi
+    set -o functrace
+    obtain_session_config "$1" ${PATH_TO_CONFIG} ${CRYPTED_PATH_TO_CONFIG} PATH_TO_SESSION_CONFIG
+    if [ -n "${PATH_TO_SESSION_CONFIG}" ]; then
+        local CONNECTION_STR=$1
+        shift
+        if [ $# -lt 2 ]; then
+            __show_help
+            exit 0
+        fi
+        local SANITIZE_ARGS=("$@")
+        for ARG in "${SANITIZE_ARGS[@]}"; do
+            if [ ${ARG:0:1} == '-' ]; then
+                __show_help
+                exit 0
+            fi
+        done
+
+        local SRC_FS=$1
+        local TARGET_FS=${CONNECTION_STR}:$2
+        clear
+        log '/' '/' '/'
+        $(get_scp) -F ${PATH_TO_SESSION_CONFIG} ${SRC_FS} ${TARGET_FS}
+    fi
+}
+
+main $@

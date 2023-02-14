@@ -2,8 +2,42 @@
 
 source $(cd $(dirname ${BASH_SOURCE}) && pwd)/lib_crypt.sh
 
-SSH_CONFIG_CMD_SHOW='--show'
-SSH_CONFIG_CMD_EDIT='--edit'
+__SSH_CONFIG_CMD_SHOW='S'
+__SSH_CONFIG_CMD_EDIT='E'
+
+function show_ssh_args_help()
+{
+    echo " {connection str}                                                      "
+    echo "      Alias from encrypted config file.                                "
+    echo " --show|-s                                                             "
+    echo "      Show decrypted config file content instead of SSH launching.     "
+    echo " --edit|-e                                                             "
+    echo "      Edit decrypted config file content.                              "
+    echo
+}
+
+function __get_arg_command()
+{
+    local ARG_CMD=$1
+    if [ -z $ARG_CMD ]; then
+        return 1
+    fi
+    case "$ARG_CMD" in
+    '--show'|'-s')   
+        ARG_CMD=${__SSH_CONFIG_CMD_SHOW}
+        ;;
+    '--edit'|'-e') 
+        ARG_CMD=${__SSH_CONFIG_CMD_EDIT}
+        ;;
+    *)    
+        if [ ${ARG_CMD:0:1} == '-' ]; then
+            return 1
+        fi     
+        ;;
+    esac
+ 
+    echo $ARG_CMD
+}
 
 function __edit_config()
 {
@@ -26,7 +60,7 @@ function init_ssh()
 {
     set +o functrace
 
-    local ARG_CMD=$1
+    local ARG_CMD=$(__get_arg_command $1)
     if [ -z $ARG_CMD ]; then
         print_error "Invalid command!"
         exit 1
@@ -44,9 +78,9 @@ function init_ssh()
     __CRYPTED_PATH_TO_CONFIG=$(crypted_name ${PATH_TO_CONFIG})
 
     if [[ ! -f ${__CRYPTED_PATH_TO_CONFIG} && ! -f ${__PATH_TO_CONFIG} ]]; then
-        if [ "$ARG_CMD" == $SSH_CONFIG_CMD_EDIT ]; then
+        if [ "$ARG_CMD" == $__SSH_CONFIG_CMD_EDIT ]; then
             __edit_config "${__PATH_TO_CONFIG}"
-        elif [ "$ARG_CMD" != $SSH_CONFIG_CMD_SHOW ]; then
+        elif [ "$ARG_CMD" != $__SSH_CONFIG_CMD_SHOW ]; then
             WARNING_MSG="There is no protected SSH-client config file. 
     Do you what to create protected one?"
             answer_no "$(emoji $EMOJI_ID_16_DANGEROUS) ${WARNING_MSG}" __YES_RESULT "[y (create file)/N]"
@@ -109,7 +143,7 @@ function obtain_session_config()
 {
     set +o functrace
 
-    local ARG_CMD=$1
+    local ARG_CMD=$(__get_arg_command $1)
     if [ -z $ARG_CMD ]; then
         print_error "Invalid command!"
         exit 1
@@ -150,11 +184,11 @@ function obtain_session_config()
     decrypt_file ${CRYPTED_PATH_TO_CONFIG} ${__MASTER_PASSPHRASE}
     trap "encrypt_file ${PATH_TO_CONFIG} ${__MASTER_PASSPHRASE}" EXIT
 
-    if [ "$ARG_CMD" == $SSH_CONFIG_CMD_SHOW ]; then
+    if [ "$ARG_CMD" == $__SSH_CONFIG_CMD_SHOW ]; then
         __MASTER_PASSPHRASE=
         echo
         cat ${PATH_TO_CONFIG}
-    elif [ "$ARG_CMD" == $SSH_CONFIG_CMD_EDIT ]; then
+    elif [ "$ARG_CMD" == $__SSH_CONFIG_CMD_EDIT ]; then
         __MASTER_PASSPHRASE=
         __edit_config "${PATH_TO_CONFIG}"
     else
