@@ -9,6 +9,7 @@ function __show_help()
     echo "____________________________________________________________________________"
     echo "Start wrapped SSH client with encrypted configuration file.                 "
     echo "Ex.:                                                                        "
+    echo
     echo -e "To open remote terminal:                                                 "
     echo -e "\t$(basename $0) my.server                                               "
     echo -e "To run remote command:                                                   "
@@ -24,14 +25,31 @@ function __show_help()
     echo "in background mode." 
     echo "____________________________________________________________________________"
     show_ssh_args_help
+    echo " --help|-e                                                                  "
+    echo "      Show this help.                                                       "    
 }
 
+# Test SOCKS:
+#
+# [ssh.sh] my.server -D 19999 -N
+#
+# curl --socks5 127.0.0.1:19999 -H "Accept: application/json" ipinfo.io
+#
 main()
-{ 
+{
     if [ $# -lt 1 ]; then
         __show_help
-        exit 0
+        exit 1
     fi
+
+    case "$1" in
+    '--help'|'-h') 
+        __show_help
+        exit 0
+        ;;
+    *)    
+        ;;
+    esac
 
     init_ssh "$1" PATH_TO_CONFIG CRYPTED_PATH_TO_CONFIG
 
@@ -50,10 +68,12 @@ main()
         done
         if ((SSH_IN_BACKGROUND)); then
             local NOHUP_TMP=$(mktemp /tmp/nohup.out.XXXXXX)
-            nohup $(get_ssh) -F ${PATH_TO_SESSION_CONFIG} ${CONNECTION_STR} $@ >${NOHUP_TMP} 2>&1 &
+            nohup $(get_ssh) -F ${PATH_TO_SESSION_CONFIG} $@ ${CONNECTION_STR} >${NOHUP_TMP} 2>&1 &
+            local JOB_PID=$!
             disown
             # Let detached SSH process start before PATH_TO_SESSION_CONFIG file will be removed
             sleep 1
+            echo "SSH task has been run and detached from terminal. Use \"kill ${JOB_PID}\" to stop it."
         else 
             clear
             log '/' '/' '/'

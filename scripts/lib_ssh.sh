@@ -13,7 +13,6 @@ function show_ssh_args_help()
     echo "      Show decrypted config file content instead of SSH launching.     "
     echo " --edit|-e                                                             "
     echo "      Edit decrypted config file content.                              "
-    echo
 }
 
 function __get_arg_command()
