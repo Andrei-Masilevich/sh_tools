@@ -41,7 +41,7 @@ function __show_help()
     echo -e "\t$(basename $0) my.server $__SCP_DOWNLOAD /tmp/my_script.sh .local/script.sh "
     echo "_________________________________________________________________________________"
     show_ssh_args_help
-    echo " --help|-e                                                                       "
+    echo " --help|-h                                                                       "
     echo "      Show this help.                                                            "
 }
 

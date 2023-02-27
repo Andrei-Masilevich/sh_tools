@@ -5,7 +5,7 @@ set -o functrace
 
 function __show_help()
 {
-    echo "Usage" $(basename $0) "(options)|[connection str] (remote command|SSH args) "
+    echo "Usage" $(basename $0) "(options) [connection str] (remote command|SSH args) "
     echo "____________________________________________________________________________"
     echo "Start wrapped SSH client with encrypted configuration file.                 "
     echo "Ex.:                                                                        "
@@ -25,7 +25,9 @@ function __show_help()
     echo "in background mode." 
     echo "____________________________________________________________________________"
     show_ssh_args_help
-    echo " --help|-e                                                                  "
+    echo " -p PIDFILE                                                                 "
+    echo "      File to use as pid file.                                              "
+    echo " --help|-h                                                                  "
     echo "      Show this help.                                                       "    
 }
 
@@ -42,7 +44,12 @@ main()
         exit 1
     fi
 
+    local PIDFILE=
     case "$1" in
+    '-p') 
+        PIDFILE=$2
+        shift; shift 
+        ;;
     '--help'|'-h') 
         __show_help
         exit 0
@@ -73,7 +80,18 @@ main()
             disown
             # Let detached SSH process start before PATH_TO_SESSION_CONFIG file will be removed
             sleep 1
-            echo "SSH task has been run and detached from terminal. Use \"kill ${JOB_PID}\" to stop it."
+            echo "SSH task has been run and detached from terminal."
+            if [ -n "$PIDFILE" ]; then
+                echo ${JOB_PID} > $PIDFILE
+                if [[ $? -ne 0 || ! -f $PIDFILE ]]; then
+                    PIDFILE=
+                fi
+            fi
+            if [[ -n "$PIDFILE" && -f $PIDFILE ]]; then
+                echo "Use \"pkill -F $PIDFILE\" to stop it."
+            else
+                echo "Use \"kill ${JOB_PID}\" to stop it."
+            fi
         else 
             clear
             log '/' '/' '/'
